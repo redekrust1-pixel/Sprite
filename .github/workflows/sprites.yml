@@ -1,0 +1,79 @@
+name: sprites
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: Quantos sprites gerar nesta rodada
+        default: '20'
+      offset:
+        description: Pular os N primeiros pendentes (para repetir sem reprocessar falhas)
+        default: '0'
+      kind:
+        description: movies, tv ou all
+        default: all
+        type: choice
+        options: [all, movies, tv]
+      dest_prefix:
+        description: Prefixo no R2 (use sprites/ em produção)
+        default: sprites-test/
+      chunks:
+        description: Jobs em paralelo (máx. 20)
+        default: '4'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sprites
+  cancel-in-progress: false
+
+env:
+  R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+  R2_BUCKET: ${{ vars.R2_BUCKET }}
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+  R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+  DEST_PREFIX: ${{ inputs.dest_prefix }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      count: ${{ steps.plan.outputs.count }}
+      shards: ${{ steps.plan.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        run: node scripts/plan.mjs
+        env:
+          LIMIT: ${{ inputs.limit }}
+          OFFSET: ${{ inputs.offset }}
+          KIND: ${{ inputs.kind }}
+          CHUNKS: ${{ inputs.chunks }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: todo
+          path: todo.json
+          retention-days: 1
+
+  generate:
+    needs: plan
+    if: needs.plan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: todo
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - run: node scripts/generate.mjs
+        env:
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ strategy.job-total }}
+          PARALLEL: '3'

@@ -1,0 +1,5 @@
+todo.json
+node_modules/
+*.jpg
+*.vtt
+.env
