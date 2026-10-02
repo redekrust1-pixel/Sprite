@@ -27,7 +27,10 @@ export async function exec(file, args, { timeoutMs = 600_000, maxBuffer = 512 * 
     return stdout;
   } catch (error) {
     const stderr = String(error.stderr ?? '').split('\n').filter(Boolean).slice(-3).join(' | ');
-    throw new Error(`${file} falhou (${error.killed ? 'timeout' : `código ${error.code}`}): ${scrub(stderr)}`);
+    throw Object.assign(
+      new Error(`${file} falhou (${error.killed ? 'timeout' : `código ${error.code}`}): ${scrub(stderr)}`),
+      { exitCode: error.code, silent: stderr === '' },
+    );
   }
 }
 

@@ -11,7 +11,11 @@ const chunks = Math.max(1, Math.min(20, Number(env('CHUNKS', '4'))));
 const MIN_BYTES = 50 * 1024 * 1024;
 
 async function list(prefix) {
-  const out = await aws(['s3', 'ls', `s3://${bucket}/${prefix}`, '--recursive']);
+  // `aws s3 ls` sai com código 1 e sem mensagem quando o prefixo não tem nenhum objeto.
+  const out = await aws(['s3', 'ls', `s3://${bucket}/${prefix}`, '--recursive']).catch((error) => {
+    if (error.exitCode === 1 && error.silent) return '';
+    throw error;
+  });
   return out.split('\n').flatMap((line) => {
     const match = /^\S+\s+\S+\s+(\d+)\s+(.+)$/.exec(line.trim());
     return match ? [{ size: Number(match[1]), key: match[2] }] : [];
