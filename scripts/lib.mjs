@@ -21,10 +21,10 @@ export const awsEnv = () => ({
 });
 
 /** Roda um binário sem nunca repassar a linha de comando (pode conter URL assinada) a quem captura o erro. */
-export async function exec(file, args, { timeoutMs = 600_000, maxBuffer = 512 * 1024 * 1024 } = {}) {
+export async function exec(file, args, { timeoutMs = 600_000, maxBuffer = 512 * 1024 * 1024, stderr: wantStderr = false } = {}) {
   try {
-    const { stdout } = await run(file, args, { env: awsEnv(), timeout: timeoutMs, maxBuffer });
-    return stdout;
+    const { stdout, stderr } = await run(file, args, { env: awsEnv(), timeout: timeoutMs, maxBuffer });
+    return wantStderr ? stderr : stdout;
   } catch (error) {
     const stderr = String(error.stderr ?? '').split('\n').filter(Boolean).slice(-3).join(' | ');
     throw Object.assign(
@@ -83,3 +83,30 @@ export function buildVtt({ interval, frames, cols, tileW, tileH }, duration, jpg
   }
   return lines.join('\n');
 }
+
+/** Retorna o início dos créditos em segundos absolutos e se veio de preto+silêncio (true) ou do palpite (false). */
+export function pickCredits(stderr, duration, tailStart) {
+  const black = [...stderr.matchAll(/black_start:([\d.]+).*?black_end:([\d.]+)/g)].map((m) => ({
+    start: Number(m[1]),
+    end: Number(m[2]),
+  }));
+  const starts = [...stderr.matchAll(/silence_start: ([\d.]+)/g)].map((m) => Number(m[1]));
+  const ends = [...stderr.matchAll(/silence_end: ([\d.]+)/g)].map((m) => Number(m[1]));
+  const silences = starts.map((start, i) => ({ start, end: ends[i] ?? start + 1 }));
+
+  let relative = null;
+  outer: for (const b of black) {
+    for (const s of silences) {
+      if (Math.min(b.end, s.end) - Math.max(b.start, s.start) >= 1) {
+        relative = Math.min(b.start, s.start);
+        break outer;
+      }
+    }
+  }
+
+  let creditsStart = relative !== null ? Math.round(tailStart + relative) : Math.round(duration - 90);
+  creditsStart = Math.max(creditsStart, Math.round(tailStart));
+  creditsStart = Math.min(creditsStart, Math.round(duration - 30));
+  return { creditsStart, detected: relative !== null };
+}
+

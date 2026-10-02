@@ -4,6 +4,8 @@ import { aws, env, spriteName } from './lib.mjs';
 
 const bucket = env('R2_BUCKET');
 const kind = env('KIND', 'all'); // all | movies | tv
+const mode = env('MODE', 'sprites'); // sprites | credits
+const doneExt = mode === 'credits' ? '.json' : '.jpg';
 const destPrefix = env('DEST_PREFIX', 'sprites-test/');
 const limit = Number(env('LIMIT', '20'));
 const offset = Number(env('OFFSET', '0'));
@@ -28,7 +30,7 @@ const videos = (await Promise.all(prefixes.map(list)))
   .filter((o) => o.key.endsWith('/source.mp4') && o.size >= MIN_BYTES);
 
 const done = new Set(
-  (await list(destPrefix)).filter((o) => o.key.endsWith('.jpg')).map((o) => o.key.slice(destPrefix.length, -4)),
+  (await list(destPrefix)).filter((o) => o.key.endsWith(doneExt)).map((o) => o.key.slice(destPrefix.length, -doneExt.length)),
 );
 
 const todo = videos
@@ -39,7 +41,7 @@ const todo = videos
 
 writeFileSync('todo.json', JSON.stringify(todo));
 const shards = Array.from({ length: Math.min(chunks, todo.length) }, (_, i) => i);
-console.log(`vídeos=${videos.length} com sprite=${done.size} a gerar=${todo.length} shards=${shards.length}`);
+console.log(`modo=${mode} vídeos=${videos.length} com sprite=${done.size} a gerar=${todo.length} shards=${shards.length}`);
 
 if (process.env.GITHUB_OUTPUT) {
   appendFileSync(process.env.GITHUB_OUTPUT, `count=${todo.length}\nshards=${JSON.stringify(shards)}\n`);
