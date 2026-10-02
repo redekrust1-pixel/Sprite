@@ -4,8 +4,8 @@ import { aws, env, spriteName } from './lib.mjs';
 
 const bucket = env('R2_BUCKET');
 const kind = env('KIND', 'all'); // all | movies | tv
-const mode = env('MODE', 'sprites'); // sprites | credits
-const doneExt = mode === 'credits' ? '.json' : '.jpg';
+const mode = env('MODE', 'sprites'); // sprites | credits | intro
+const doneExt = mode === 'sprites' ? '.jpg' : '.json';
 const destPrefix = env('DEST_PREFIX', 'sprites-test/');
 const limit = Number(env('LIMIT', '20'));
 const offset = Number(env('OFFSET', '0'));
@@ -24,7 +24,7 @@ async function list(prefix) {
   });
 }
 
-const prefixes = kind === 'all' ? ['movies/', 'tv/'] : [`${kind}/`];
+const prefixes = mode === 'intro' ? ['tv/'] : kind === 'all' ? ['movies/', 'tv/'] : [`${kind}/`];
 const videos = (await Promise.all(prefixes.map(list)))
   .flat()
   .filter((o) => o.key.endsWith('/source.mp4') && o.size >= MIN_BYTES);
@@ -33,8 +33,29 @@ const done = new Set(
   (await list(destPrefix)).filter((o) => o.key.endsWith(doneExt)).map((o) => o.key.slice(destPrefix.length, -doneExt.length)),
 );
 
-const todo = videos
-  .map((o) => ({ key: o.key, name: spriteName(o.key), size: o.size }))
+// Intro: um item por temporada (>= 2 episódios), com os 3 primeiros episódios, como no DioneyFlix.
+function seasonItems() {
+  const seasons = new Map();
+  for (const { key } of videos) {
+    const m = /^tv\/(\d+)\/season-(\d+)\/episode-(\d+)\/source\.mp4$/.exec(key);
+    if (!m || Number(m[2]) === 0) continue;
+    const name = `${m[1]}_series_s${Number(m[2])}`;
+    if (!seasons.has(name)) seasons.set(name, []);
+    seasons.get(name).push({ episode: Number(m[3]), key });
+  }
+  return [...seasons]
+    .filter(([, eps]) => eps.length >= 2)
+    .map(([name, eps]) => ({
+      key: eps[0].key.replace(/\/episode-\d+\/source\.mp4$/, ''),
+      name,
+      eps: eps.sort((a, b) => a.episode - b.episode).slice(0, 3).map((e) => e.key),
+    }));
+}
+
+const candidates = mode === 'intro'
+  ? seasonItems()
+  : videos.map((o) => ({ key: o.key, name: spriteName(o.key), size: o.size }));
+const todo = candidates
   .filter((o) => o.name && !done.has(o.name))
   .sort((a, b) => a.key.localeCompare(b.key))
   .slice(offset, offset + limit);

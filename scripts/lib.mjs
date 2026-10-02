@@ -110,3 +110,49 @@ export function pickCredits(stderr, duration, tailStart) {
   return { creditsStart, detected: relative !== null };
 }
 
+// ── Detecção de intro (porta de findCommonSegment do detection.service.js) ──
+const POPCOUNT16 = new Uint8Array(65536);
+for (let i = 1; i < 65536; i += 1) POPCOUNT16[i] = POPCOUNT16[i >> 1] + (i & 1);
+
+const hamming = (a, b) => {
+  const x = ((a >>> 0) ^ (b >>> 0)) >>> 0;
+  return POPCOUNT16[x & 0xffff] + POPCOUNT16[x >>> 16];
+};
+
+/** Maior trecho contíguo em que as duas impressões digitais coincidem (até maxBits bits de diferença por inteiro). */
+export function findCommonSegment(fp1, fp2, maxBits = 8) {
+  let best = { i: -1, j: -1, len: 0 };
+  const n = fp1.length;
+  const m = fp2.length;
+  for (let offset = -(m - 1); offset < n; offset += 1) {
+    const iStart = Math.max(0, offset);
+    const jStart = iStart - offset;
+    const diagLen = Math.min(n - iStart, m - jStart);
+    if (diagLen <= best.len) continue;
+    let run = 0;
+    for (let k = 0; k < diagLen; k += 1) {
+      if (hamming(fp1[iStart + k], fp2[jStart + k]) <= maxBits) {
+        run += 1;
+        if (run > best.len) best = { i: iStart + k - run + 1, j: jStart + k - run + 1, len: run };
+      } else {
+        run = 0;
+        if (diagLen - k - 1 <= best.len) break;
+      }
+    }
+  }
+  return best;
+}
+
+/** Converte o melhor trecho em segundos. `spi` = segundos por inteiro da impressão. */
+export function introFromMatch(match, spi) {
+  const matchDuration = match.len * spi;
+  if (matchDuration < 10) return { found: false, matchDuration };
+  return {
+    found: true,
+    matchDuration,
+    introStart: Math.max(0, Math.round(match.i * spi)),
+    introEnd: Math.round((match.i + match.len) * spi),
+    confidence: Math.min(1, matchDuration / 90),
+  };
+}
+

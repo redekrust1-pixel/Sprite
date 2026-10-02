@@ -10,17 +10,17 @@ on:
         description: Pular os N primeiros pendentes (para repetir sem reprocessar falhas)
         default: '0'
       mode:
-        description: sprites (jpg+vtt) ou credits (início dos créditos)
+        description: sprites (jpg+vtt), credits (início dos créditos) ou intro (abertura, por temporada)
         default: sprites
         type: choice
-        options: [sprites, credits]
+        options: [sprites, credits, intro]
       kind:
         description: movies, tv ou all
         default: all
         type: choice
         options: [all, movies, tv]
       dest_prefix:
-        description: Prefixo no R2 (sprites/ ou markers/ em produção; sprites-test/ ou markers-test/ para testar)
+        description: Prefixo no R2 (sprites/, markers/ ou intros/ em produção; sprites-test/, markers-test/ ou intros-test/ para testar)
         default: sprites-test/
       chunks:
         description: Jobs em paralelo (máx. 20)
@@ -77,8 +77,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: todo
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
-      - run: node scripts/${{ inputs.mode == 'credits' && 'credits' || 'generate' }}.mjs
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg libchromaprint-tools
+      - run: node scripts/${{ (inputs.mode == 'credits' && 'credits') || (inputs.mode == 'intro' && 'intro') || 'generate' }}.mjs
         env:
           SHARD: ${{ matrix.shard }}
           SHARDS: ${{ strategy.job-total }}
