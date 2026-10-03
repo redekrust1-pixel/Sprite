@@ -1,5 +1,8 @@
 name: sprites
 
+# O nome da rodada começa pelo modo: o orquestrador da VPS usa isso para saber quais modos estão ativos.
+run-name: ${{ inputs.mode }} | ${{ inputs.dest_prefix }} | ${{ inputs.todo_key || format('limite {0}', inputs.limit) }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -40,7 +43,7 @@ permissions:
   actions: write   # para a rodada disparar a próxima com o GITHUB_TOKEN
 
 concurrency:
-  group: sprites
+  group: sprites-${{ inputs.mode }}   # um grupo por modo: sprites, credits e intro rodam ao mesmo tempo
   cancel-in-progress: false
 
 env:
