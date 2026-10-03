@@ -28,6 +28,9 @@ on:
       chunks:
         description: Jobs em paralelo (máx. 20)
         default: '4'
+      parallel:
+        description: Itens em paralelo dentro de cada job (o runner tem 4 vCPU; o trabalho é quase todo espera de rede)
+        default: '3'
       todo_key:
         description: Chave no R2 de uma lista pronta (orquestrador da VPS). Vazio = o plan lista o bucket
         default: ''
@@ -96,7 +99,7 @@ jobs:
         env:
           SHARD: ${{ matrix.shard }}
           SHARDS: ${{ strategy.job-total }}
-          PARALLEL: '3'
+          PARALLEL: ${{ inputs.parallel || '3' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
