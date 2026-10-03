@@ -16,6 +16,7 @@ const mine = all.filter((_, index) => index % shards === shard);
 const results = { ok: 0, failed: 0 };
 
 async function processOne({ key, name }) {
+  const started = Date.now();
   const dir = mkdtempSync(join(tmpdir(), 'sprite-'));
   try {
     const url = (await aws(['s3', 'presign', `s3://${bucket}/${key}`, '--expires-in', '3600'])).trim();
@@ -47,7 +48,7 @@ async function processOne({ key, name }) {
     // O .vtt vai por último: ele é o marcador de "sprite completo".
     await aws(['s3', 'cp', vtt, `s3://${bucket}/${destPrefix}${name}.vtt`, '--content-type', 'text/vtt; charset=utf-8', '--cache-control', cache, '--only-show-errors']);
     results.ok += 1;
-    console.log(`ok   ${name} (${grid.frames} quadros, ${Math.round(statSync(jpg).size / 1024)} KB)`);
+    console.log(`ok   ${name} (${grid.frames} quadros, ${Math.round(statSync(jpg).size / 1024)} KB) ${((Date.now() - started) / 1000).toFixed(1)}s`);
   } catch (error) {
     results.failed += 1;
     console.log(`FAIL ${name}: ${scrub(error.message)}`);

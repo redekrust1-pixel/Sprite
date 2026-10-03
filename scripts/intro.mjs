@@ -39,6 +39,7 @@ async function fingerprint(key, dir, tag) {
 }
 
 async function processOne({ name, eps }) {
+  const started = Date.now();
   const dir = mkdtempSync(join(tmpdir(), 'intro-'));
   try {
     const cache = new Map();
@@ -67,10 +68,10 @@ async function processOne({ name, eps }) {
     await aws(['s3', 'cp', file, `s3://${bucket}/${destPrefix}${name}.json`, '--content-type', 'application/json', '--only-show-errors']);
     if (best.found) {
       results.found += 1;
-      console.log(`ok   ${name} intro=${marker.intro_start}s–${marker.intro_end}s (${best.matchDuration.toFixed(1)}s)`);
+      console.log(`ok   ${name} intro=${marker.intro_start}s–${marker.intro_end}s (${best.matchDuration.toFixed(1)}s) ${((Date.now() - started) / 1000).toFixed(1)}s`);
     } else {
       results.none += 1;
-      console.log(`none ${name} (melhor trecho comum: ${best.matchDuration.toFixed(1)}s)`);
+      console.log(`none ${name} (melhor trecho comum: ${best.matchDuration.toFixed(1)}s) ${((Date.now() - started) / 1000).toFixed(1)}s`);
     }
   } catch (error) {
     results.failed += 1;

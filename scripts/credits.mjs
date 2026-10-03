@@ -17,6 +17,7 @@ const mine = all.filter((_, index) => index % shards === shard);
 const results = { ok: 0, failed: 0, fallback: 0 };
 
 async function processOne({ key, name }) {
+  const started = Date.now();
   const dir = mkdtempSync(join(tmpdir(), 'credits-'));
   try {
     const url = (await aws(['s3', 'presign', `s3://${bucket}/${key}`, '--expires-in', '3600'])).trim();
@@ -53,7 +54,7 @@ async function processOne({ key, name }) {
     await aws(['s3', 'cp', file, `s3://${bucket}/${destPrefix}${name}.json`, '--content-type', 'application/json', '--only-show-errors']);
     results.ok += 1;
     if (!detected) results.fallback += 1;
-    console.log(`ok   ${name} créditos=${creditsStart}s/${Math.round(duration)}s ${detected ? 'detectado' : 'palpite'}`);
+    console.log(`ok   ${name} créditos=${creditsStart}s/${Math.round(duration)}s ${detected ? 'detectado' : 'palpite'} ${((Date.now() - started) / 1000).toFixed(1)}s`);
   } catch (error) {
     results.failed += 1;
     console.log(`FAIL ${name}: ${scrub(error.message)}`);
