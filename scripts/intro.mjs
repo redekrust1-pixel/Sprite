@@ -87,3 +87,5 @@ await Promise.all(
   }),
 );
 console.log(`shard ${shard}/${shards}: com intro=${results.found} sem intro=${results.none} falhas=${results.failed}`);
+// "sem intro" também é um resultado definitivo (fica gravado e o plan não repete): só falha de rede conta como falha.
+writeFileSync(`result-${shard}.json`, JSON.stringify({ ok: results.found + results.none, failed: results.failed }));

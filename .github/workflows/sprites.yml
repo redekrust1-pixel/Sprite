@@ -25,9 +25,16 @@ on:
       chunks:
         description: Jobs em paralelo (máx. 20)
         default: '4'
+      rounds:
+        description: Quantas rodadas encadeadas (cada uma dispara a próxima sozinha). 1 = só esta
+        default: '1'
+      then:
+        description: Modos seguintes ao acabar este, separados por vírgula (ex. credits,intro). Só encadeia com prefixo de produção
+        default: ''
 
 permissions:
   contents: read
+  actions: write   # para a rodada disparar a próxima com o GITHUB_TOKEN
 
 concurrency:
   group: sprites
@@ -83,3 +90,38 @@ jobs:
           SHARD: ${{ matrix.shard }}
           SHARDS: ${{ strategy.job-total }}
           PARALLEL: '3'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: result-${{ matrix.shard }}
+          path: result-*.json
+          retention-days: 1
+          if-no-files-found: ignore
+
+  next:
+    # Decide se dispara a próxima rodada (ou o próximo modo). Roda mesmo se algum shard falhar.
+    needs: [plan, generate]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: result-*
+          path: results
+          merge-multiple: true
+      - run: node scripts/next.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          MODE: ${{ inputs.mode }}
+          LIMIT: ${{ inputs.limit }}
+          OFFSET: ${{ inputs.offset }}
+          KIND: ${{ inputs.kind }}
+          CHUNKS: ${{ inputs.chunks }}
+          ROUNDS: ${{ inputs.rounds }}
+          THEN: ${{ inputs.then }}
+          PLAN_COUNT: ${{ needs.plan.outputs.count }}
+          RESULT_DIR: results

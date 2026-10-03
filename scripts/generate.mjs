@@ -63,3 +63,4 @@ await Promise.all(
   }),
 );
 console.log(`shard ${shard}/${shards}: ok=${results.ok} falhas=${results.failed}`);
+writeFileSync(`result-${shard}.json`, JSON.stringify({ ok: results.ok, failed: results.failed }));

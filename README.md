@@ -19,3 +19,15 @@ Actions → **sprites** → *Run workflow*. O padrão gera 20 sprites em `sprite
 Para produção use `dest_prefix = sprites/`. O que já tem `.jpg` no prefixo é pulado.
 
 O repositório é público: os scripts nunca imprimem chaves nem URLs assinadas.
+
+## Rodar sozinho (encadeado)
+
+Com `rounds` maior que 1, no fim de cada rodada o workflow dispara a próxima com o próprio `GITHUB_TOKEN`
+(`scripts/next.mjs`), sem ninguém clicar:
+
+- continua enquanto a rodada tiver ao menos um sucesso; quem falhou é pulado na próxima (`offset` acumula);
+- **para** se uma rodada só tiver falhas, se acabarem as `rounds`, ou se não houver mais nada pendente;
+- `then` (ex.: `credits,intro`) encadeia o próximo modo quando o atual termina, usando `markers/` e `intros/`.
+  Só encadeia com prefixo de produção (prefixos `*-test/` nunca encadeiam).
+
+Exemplo (um clique): `mode=sprites`, `dest_prefix=sprites/`, `limit=10000`, `chunks=20`, `rounds=30`.
