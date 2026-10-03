@@ -1,5 +1,5 @@
 // Lista os vídeos do R2 que ainda não têm sprite e grava todo.json.
-import { appendFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { aws, env, spriteName } from './lib.mjs';
 
 const bucket = env('R2_BUCKET');
@@ -22,6 +22,18 @@ async function list(prefix) {
     const match = /^\S+\s+\S+\s+(\d+)\s+(.+)$/.exec(line.trim());
     return match ? [{ size: Number(match[1]), key: match[2] }] : [];
   });
+}
+
+// Lista pronta vinda do orquestrador da VPS (gravada no R2): pula a listagem do bucket inteiro (~3 min).
+if (process.env.TODO_KEY) {
+  await aws(['s3', 'cp', `s3://${bucket}/${process.env.TODO_KEY}`, 'todo.json', '--only-show-errors']);
+  const fromVps = JSON.parse(readFileSync('todo.json', 'utf8'));
+  const vpsShards = Array.from({ length: Math.min(chunks, fromVps.length) }, (_, i) => i);
+  console.log(`modo=${mode} lista da VPS: ${fromVps.length} itens, shards=${vpsShards.length}`);
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `count=${fromVps.length}
+shards=${JSON.stringify(vpsShards)}
+`);
+  process.exit(0);
 }
 
 const prefixes = mode === 'intro' ? ['tv/'] : kind === 'all' ? ['movies/', 'tv/'] : [`${kind}/`];

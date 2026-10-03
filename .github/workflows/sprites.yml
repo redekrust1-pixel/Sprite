@@ -25,6 +25,9 @@ on:
       chunks:
         description: Jobs em paralelo (máx. 20)
         default: '4'
+      todo_key:
+        description: Chave no R2 de uma lista pronta (orquestrador da VPS). Vazio = o plan lista o bucket
+        default: ''
       rounds:
         description: Quantas rodadas encadeadas (cada uma dispara a próxima sozinha). 1 = só esta
         default: '1'
@@ -64,6 +67,7 @@ jobs:
           KIND: ${{ inputs.kind }}
           MODE: ${{ inputs.mode }}
           CHUNKS: ${{ inputs.chunks }}
+          TODO_KEY: ${{ inputs.todo_key }}
       - uses: actions/upload-artifact@v4
         with:
           name: todo
